@@ -40,12 +40,7 @@ func (b *Broker) serveUDP(conn *net.UDPConn) {
 
 func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 	defer b.wg.Done()
-	interval := time.Second / time.Duration(b.cfg.DispatchRate)
-	if interval < time.Nanosecond {
-		interval = time.Nanosecond
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	bucket := dispatchBucket{tokens: float64(b.cfg.DispatchBurst), updated: time.Now()}
 	for {
 		select {
 		case <-b.stopDispatch:
@@ -54,11 +49,6 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 		case <-time.After(250 * time.Millisecond):
 		}
 		for {
-			select {
-			case <-b.stopDispatch:
-				return
-			case <-ticker.C:
-			}
 			_, e, ok := b.scheduler.Next(eventwire.DispatchTurnBytes)
 			if !ok {
 				break
@@ -82,6 +72,19 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 				continue
 			}
 			for _, sub := range b.Contracts().Subscriptions.ForTopic(ref) {
+				if !b.waitDispatchToken(&bucket) {
+					return
+				}
+				left = eventwire.Remaining(e, time.Now()).Truncate(time.Millisecond)
+				if left <= 0 {
+					b.count("expired")
+					break
+				}
+				e.Header.TTL = left
+				packet, err = eventwire.Encode(e.Header, e.Payload)
+				if err != nil {
+					break
+				}
 				if _, err := conn.WriteToUDPAddrPort(packet, sub.UDPAddr); err != nil {
 					b.count("delivery_error")
 				}
@@ -90,7 +93,7 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 				link := b.Contracts().Link.Link()
 				interest := b.Contracts().Interest.RemoteInterest(ref)
 				if link.Alive && link.PeerUDP.IsValid() && interest.HasSubscribers && interest.Fresh(time.Now(), contract.InterestMaxAge) {
-					left = forwardedTTL(left, link.RTT)
+					left = forwardedTTL(eventwire.Remaining(e, time.Now()), link.RTT)
 					left = left.Truncate(time.Millisecond)
 					if left <= 0 {
 						b.count("expired_forward")
@@ -100,6 +103,20 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 					e.Header.TTL = left
 					forward, err := eventwire.Encode(e.Header, e.Payload)
 					if err == nil {
+						if !b.waitDispatchToken(&bucket) {
+							return
+						}
+						left = eventwire.Remaining(e, time.Now()).Truncate(time.Millisecond)
+						left = forwardedTTL(left, link.RTT).Truncate(time.Millisecond)
+						if left <= 0 {
+							b.count("expired_forward")
+							continue
+						}
+						e.Header.TTL = left
+						forward, err = eventwire.Encode(e.Header, e.Payload)
+						if err != nil {
+							continue
+						}
 						if _, err = conn.WriteToUDPAddrPort(forward, link.PeerUDP); err != nil {
 							b.count("peer_forward_error")
 						} else {
@@ -111,6 +128,37 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 			b.count("dispatched")
 			b.gauge("queue_global", int64(b.scheduler.Len()))
 			b.gauge("queue_bytes", int64(b.scheduler.Bytes()))
+		}
+	}
+}
+
+type dispatchBucket struct {
+	tokens  float64
+	updated time.Time
+}
+
+func (b *Broker) waitDispatchToken(bucket *dispatchBucket) bool {
+	for {
+		now := time.Now()
+		bucket.tokens += now.Sub(bucket.updated).Seconds() * float64(b.cfg.DispatchRate)
+		if max := float64(b.cfg.DispatchBurst); bucket.tokens > max {
+			bucket.tokens = max
+		}
+		bucket.updated = now
+		if bucket.tokens >= 1 {
+			bucket.tokens--
+			return true
+		}
+		wait := time.Duration((1 - bucket.tokens) / float64(b.cfg.DispatchRate) * float64(time.Second))
+		if wait < time.Millisecond {
+			wait = time.Millisecond
+		}
+		t := time.NewTimer(wait)
+		select {
+		case <-b.stopDispatch:
+			t.Stop()
+			return false
+		case <-t.C:
 		}
 	}
 }

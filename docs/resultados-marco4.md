@@ -52,6 +52,28 @@ evento após reconexão).
 - O cenário de saturação não excedeu a fila do subscriber, então não mediu
   descarte por consumidor lento.
 
+## Ensaios de carga ainda não medidos
+
+Os resultados acima são exclusivamente dos ensaios locais com um broker no
+mesmo processo/host dos clientes. Eles não permitem concluir sobre a
+distribuição com dois brokers, justiça entre publicadores ou isolamento de
+consumidor lento. Esses cenários não foram executados; portanto, não há
+valores ou gráficos válidos para reportar nessas comparações.
+
+| Medida pendente | Estado | O que falta para concluir |
+|---|---|---|
+| Carga com encaminhamento A↔B | Não medida | Executar a aplicação com clientes conectados aos dois brokers e coletar os fluxos locais e encaminhados. |
+| Justiça do rodízio entre publicadores | Não medida | Rodar vários publicadores simultâneos, contabilizar eventos por publicador e comparar a distribuição (por exemplo, índice de Jain). |
+| Descarte por consumidor lento | Não medido | Comparar a mesma carga com consumidor normal e com processamento atrasado, registrando descartes por inscrição. |
+| Lacuna de eventos no failover UDP em contêineres | Não medida neste relatório | Executar o cenário 8 com o leilão e registrar a lacuna por fluxo; o valor local de 40,366 ms acima não substitui essa medição. |
+| Benefício do segundo broker na distribuição | Não avaliado | Comparar coletas equivalentes com um e dois brokers, mantendo taxa, duração, publicadores e assinantes constantes. |
+
+As ferramentas e os procedimentos documentados em `docs/ensaios.md` permitem
+coletar essas medidas, mas a existência do roteiro não é resultado
+experimental. Esta seção deve ser atualizada com os logs e os gráficos de
+uma execução real antes de afirmar justiça, descarte observado ou melhora
+da distribuição pelo segundo broker.
+
 Gráficos produzidos pelo ensaio:
 
 - Nominal: [marco4-nominal.svg](figuras/marco4-nominal.svg).

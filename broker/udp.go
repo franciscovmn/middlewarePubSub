@@ -49,7 +49,10 @@ func (b *Broker) dispatchUDP(conn *net.UDPConn) {
 		case <-time.After(250 * time.Millisecond):
 		}
 		for {
-			_, e, ok := b.scheduler.Next(eventwire.DispatchTurnBytes)
+			_, e, expired, ok := b.scheduler.NextLive(time.Now())
+			for ; expired > 0; expired-- {
+				b.count("expired")
+			}
 			if !ok {
 				break
 			}

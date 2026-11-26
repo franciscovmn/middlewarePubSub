@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="268">
+<rect width="100%" height="100%" fill="white"/>
+<text x="24" y="32" font-size="20">Latência média no espectador-a, mesma carga</text>
+<text x="24" y="87" font-size="14">dois brokers, lances: 0.71 ms</text>
+<rect x="300" y="70" width="1.9" height="22" fill="#2878b5"/>
+<text x="24" y="129" font-size="14">dois brokers, reações: 0.56 ms</text>
+<rect x="300" y="112" width="1.5" height="22" fill="#2878b5"/>
+<text x="24" y="171" font-size="14">um broker, lances: 216.63 ms</text>
+<rect x="300" y="154" width="580.0" height="22" fill="#2878b5"/>
+<text x="24" y="213" font-size="14">um broker, reações: 195.19 ms</text>
+<rect x="300" y="196" width="522.6" height="22" fill="#2878b5"/>
+</svg>

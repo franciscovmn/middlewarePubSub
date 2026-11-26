@@ -635,31 +635,37 @@ máquinas separadas descrita acima.
 
 ### Carga com encaminhamento, justiça e consumidor lento
 
-Para exercitar os dois brokers, use o perfil do leilão com participantes em
-ambos. `participante-3` a `participante-8` têm identidades próprias e
-alternam a preferência A/B. Exemplo com quatro publicadores durante 60 s:
+`scripts/carga.sh <nome>` roda um ensaio de carga com o leilão, sem as
+sondas. Ele sobe os brokers, o leiloeiro, os dois espectadores e os
+participantes (por padrão, `participante-1` a `participante-4`, que
+alternam a preferência entre A e B), mede os datagramas UDP enviados por
+segundo e a CPU de cada broker numa janela de 30 s, e guarda os registros
+em `ensaios/resultados/<data>-carga-<nome>/`, com `carga.txt`,
+`fluxos.txt` (recebidos, perdidos e latência por espectador e fluxo),
+`publicacoes.txt` (resultados de admissão por participante) e os gráficos
+de `scripts/graficos-carga.py`. As variáveis do `scripts/ensaio.env` podem
+ser sobrescritas no ambiente.
+
+Os quatro ensaios do `docs/resultados-marco4.md`:
 
 ```sh
-scripts/ensaio.sh preparar
-LOG_FORMATO=text DURACAO=60s LANCES=20 REACOES=4 RAJADA=0 \
-  docker compose --env-file scripts/ensaio.env --profile leilao up -d \
-  leiloeiro espectador-a espectador-b participante-1 participante-2 participante-3 participante-4
-sleep 65
-scripts/ensaio.sh coletar carga-encaminhada
-python scripts/graficos-carga.py ensaios/resultados/<diretorio-da-coleta>
+export LANCES=20 REACOES=4 RAJADA=0 DURACAO=60s
+scripts/carga.sh base
+TOPOLOGIA=um scripts/carga.sh um-broker
+LENTO=espectador-b ATRASO_LENTO=50ms scripts/carga.sh consumidor-lento
+LANCES=10 REACOES=0 DISTRIBUICAO=150 DISTRIBUICAO_RAJADA=150 \
+  PARTICIPANTES="participante-1 participante-2 participante-3 participante-4 participante-5" \
+  PESADO=participante-5 PESADO_ARGS="-lances=45" scripts/carga.sh justica
 ```
 
-O gerador produz `justica.csv`/`.svg`, `lacuna-failover.svg` e
-`descartes.svg`. Justiça usa os eventos de lance vistos por um espectador e
-calcula o índice de Jain (1 indica distribuição igual). Para avaliar o
-efeito do segundo broker, compare com uma coleta equivalente após parar B e
-usar só clientes que preferem A; mantenha taxa, duração e quantidade de
-publicadores iguais. A lacuna de failover vem das linhas `lacuna de eventos`
-coletadas pelo cenário UDP 8 (`scripts/ensaio.sh cenario 8 matar`, `travar`
-ou `isolar`).
+`TOPOLOGIA=um` sobe só o A, sem par, e todos os clientes se conectam a
+ele: com a mesma carga, mostra o efeito do segundo broker. `LENTO` atrasa o
+processamento de cada evento num espectador; o outro serve de comparação,
+e `descartados_fila` registra o descarte na fila da inscrição. O ensaio de
+justiça baixa o limite de distribuição para saturar o A e dá ao
+`participante-5` uma taxa maior que a dos outros; `fluxos.txt` mostra
+quanto de cada publicador chegou. O índice de Jain de `justica.csv` só
+indica divisão igual quando os publicadores pedem a mesma taxa.
 
-Para consumidor lento, repita a coleta com `ATRASO_CONSUMIDOR=50ms` (ou outro
-atraso) e compare com `ATRASO_CONSUMIDOR=0`. O atraso é aplicado ao
-processamento de cada evento no espectador e os resumos registram
-`descartados_fila`, permitindo observar o descarte na fila limitada da
-biblioteca.
+A lacuna de eventos no failover vem do cenário 8
+(`scripts/ensaio.sh cenario 8 matar`, `travar` ou `isolar`).

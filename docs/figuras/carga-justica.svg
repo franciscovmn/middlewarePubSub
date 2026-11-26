@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="310">
+<rect width="100%" height="100%" fill="white"/>
+<text x="24" y="32" font-size="20">Lances entregues ao espectador-a por segundo, limite de 150 datagramas/s</text>
+<text x="24" y="87" font-size="14">participante-1 (10/s): 9.98 eventos/s</text>
+<rect x="300" y="70" width="580.0" height="22" fill="#2878b5"/>
+<text x="24" y="129" font-size="14">participante-2 (10/s): 9.05 eventos/s</text>
+<rect x="300" y="112" width="525.8" height="22" fill="#2878b5"/>
+<text x="24" y="171" font-size="14">participante-3 (10/s): 9.98 eventos/s</text>
+<rect x="300" y="154" width="580.0" height="22" fill="#2878b5"/>
+<text x="24" y="213" font-size="14">participante-4 (10/s): 0.58 eventos/s</text>
+<rect x="300" y="196" width="33.9" height="22" fill="#2878b5"/>
+<text x="24" y="255" font-size="14">participante-5 (45/s): 5.67 eventos/s</text>
+<rect x="300" y="238" width="329.2" height="22" fill="#2878b5"/>
+</svg>

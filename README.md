@@ -104,8 +104,10 @@ troca o destino UDP e restaura as inscrições.
 ## Ensaios
 
 Os ensaios de falha rodam em contêineres (`make imagem`, depois
-`scripts/ensaio.sh cenario <n>`). O ensaio de carga local roda com
-`go run ./cmd/ensaio`. Procedimentos estão em `docs/ensaios.md` e os
+`scripts/ensaio.sh cenario <n>`). Os ensaios de carga com o leilão nos
+contêineres rodam com `scripts/carga.sh <nome>`, e o ensaio de carga local
+com `go run ./cmd/ensaio`. A falha de host em dois computadores usa
+`scripts/duas-maquinas.sh`. Procedimentos estão em `docs/ensaios.md` e os
 resultados de carga, MTU, RTT/2 e lacuna de failover em
 `docs/resultados-marco4.md`. As decisões tomadas durante a implementação
 estão em `docs/decisoes.md`.

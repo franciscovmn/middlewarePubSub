@@ -56,6 +56,7 @@ ou `docker compose --env-file <cópia> ...`.
 | `B_PORTA_TCP`, `B_PORTA_UDP` | 7100, 7101 | portas do B publicadas no host |
 | `A_CPUS`, `A_MEMORIA` | 1, 256m | limites do A |
 | `B_CPUS`, `B_MEMORIA` | 1, 256m | limites do B |
+| `DISTRIBUICAO`, `DISTRIBUICAO_RAJADA` | 320, 320 | limite de datagramas UDP enviados por segundo por broker e rajada (seção 7.2, D87) |
 | `MEMORIA_MAX_BYTES` | 201326592 | alvo máximo do heap Go por broker (192 MiB); `A_MEMORIA`/`B_MEMORIA` são os tetos rígidos do contêiner |
 | `LOG_FORMATO`, `LOG_NIVEL` | text, info | `json` facilita processar os registros nos ensaios de carga |
 | `TOPICOS` | os três tópicos acima | tópicos das sondas (`nome=estado` para tópico de estado) |

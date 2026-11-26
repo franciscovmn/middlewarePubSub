@@ -22,8 +22,10 @@ const (
 	DefaultHeartbeatTimeout  = 5 * time.Second
 	DefaultWriteTimeout      = time.Second
 	DefaultResultQueue       = 4096
-	DefaultDispatchRate      = 60
-	DefaultDispatchBurst     = 60
+	// DefaultDispatchRate é o dobro da carga medida no pior caso do leilão
+	// de exemplo, com um só broker atendendo todos os clientes (D87).
+	DefaultDispatchRate  = 320
+	DefaultDispatchBurst = 320
 )
 
 type Credential struct {

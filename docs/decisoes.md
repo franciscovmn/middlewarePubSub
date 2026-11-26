@@ -730,3 +730,23 @@ simplificando publicação, encaminhamento e regras de firewall. A origem
 validada pelo enlace impede que um cliente comum se passe pelo par. O
 encaminhamento continua limitado a um salto, pela marca de encaminhamento.
 Descartada: reservar uma segunda porta UDP só para o tráfego entre brokers.
+
+**D87. Limite global de distribuição de 320 datagramas por segundo por
+broker, com rajada de 320.**
+O limite conta cada datagrama enviado, seja a um inscrito, seja ao par, e
+é aplicado por um token bucket no despacho. O valor é o dobro da carga
+medida no pior caso do leilão de exemplo: com o A fora, o B sozinho envia
+162 datagramas por segundo, contados com `iptables` no contêiner. Em
+operação normal, o A envia 107 e o B, 86. A taxa e a rajada são
+configuráveis no broker (`-distribuicao-por-segundo`,
+`-distribuicao-rajada`) e nos ensaios (`DISTRIBUICAO`,
+`DISTRIBUICAO_RAJADA`).
+Justificativa: a seção 7.2 pede limitar o volume de distribuição a cerca de
+duas vezes a carga esperada. O primeiro valor, 60 por segundo, ficava
+abaixo da própria carga do leilão: depois do failover, os lances e as
+reações expiravam na fila, e o espectador recebia só o placar. Com 320, o
+cenário 8 volta a ter latência média abaixo de 1 ms, e a rajada de um
+segundo cobre as rajadas de reações sem espera.
+Descartada: 60 por segundo, abaixo da carga medida; e liberar um evento
+por intervalo fixo, sem rajada, que atrasava todos os eventos mesmo sem
+carga.

@@ -66,6 +66,8 @@ ou `docker compose --env-file <cópia> ...`.
 | `LANCES`, `REACOES` | 5, 5 | lances e reações por segundo de cada participante |
 | `RAJADA`, `RAJADA_CADA` | 10, 10s | reações enviadas de uma vez e intervalo entre rajadas |
 | `RESUMO` | 2s | intervalo entre os resumos do leilão |
+| `DURACAO` | 0 | tempo de execução dos participantes; 0 roda até o ambiente descer |
+| `ATRASO_CONSUMIDOR` | 0 | atraso por evento nos espectadores, para simular consumidor lento |
 
 Reaproveitamento nos ensaios de carga:
 

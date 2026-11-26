@@ -148,7 +148,7 @@ services:
       - -reacoes=${REACOES:-5}
       - -rajada=${RAJADA:-10}
       - -rajada-cada=${RAJADA_CADA:-10s}
-      - -duracao=${DURACAO:-60s}
+      - -duracao=${DURACAO:-0}
       - -resumo=${RESUMO:-2s}
       - -silencio=${SILENCIO:-5s}
       - -log-format=${LOG_FORMATO:-text}

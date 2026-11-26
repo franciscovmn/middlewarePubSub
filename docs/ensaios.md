@@ -474,46 +474,82 @@ reproduzem falhas de hardware, de energia nem do sistema operacional:
 
 ### Falha de host em duas máquinas
 
-Para ensaiar falha de host, rode cada broker numa máquina física ou
-virtual separada, com os clientes numa terceira máquina, ou nas duas.
+O ensaio de falha de host usa dois computadores na mesma rede: o
+computador 1 roda só o broker A, e o computador 2 roda o broker B e todos
+os clientes. A falha é injetada no computador 1; os clientes que estavam
+no A passam ao B, e as medidas são tiradas no computador 2, com um só
+relógio. Com três computadores, os clientes podem ficar num terceiro, e a
+falha pode ser injetada em qualquer um dos brokers.
 
-1. **Sincronize os relógios** com NTP (`chrony`) nas máquinas. Confira o
-   desvio com `chronyc tracking` antes e depois do ensaio, e anote-o no
-   relatório: as medidas entre máquinas valem com essa margem.
-2. **Suba os brokers** com os executáveis (`make build`) ou com a imagem,
-   usando a rede do host:
-   ```
-   # máquina 2 (B)
-   docker run --rm --network host --cap-add NET_ADMIN -v $PWD/config:/etc/pubsub:ro pubsub-middleware:ensaio \
-     broker -id B -credentials /etc/pubsub/credentials.ensaio.json -peer-id A -peer-listen :7002 -peer-token ensaio-par 2> b.log
-   # máquina 1 (A)
-   docker run --rm --network host --cap-add NET_ADMIN -v $PWD/config:/etc/pubsub:ro pubsub-middleware:ensaio \
-     broker -id A -credentials /etc/pubsub/credentials.ensaio.json -peer-id B -peer-admin -peer-addr <ip-de-B>:7002 -peer-token ensaio-par 2> a.log
-   ```
-   Com a rede do host, o endereço UDP do par é aprendido pelo IP real do
-   enlace, sem `-peer-udp-addr`.
-3. **Suba os clientes** na máquina dos clientes: as sondas, com
-   `sonda observar -brokers <ip-de-A>:7000,<ip-de-B>:7000 ...` e o
-   equivalente com B primeiro, e o leilão, com `leilao leiloeiro -criar`,
-   dois `leilao participante` e dois `leilao espectador`, cada par com uma
-   ordem de brokers. A porta UDP de cada cliente (`-udp`) precisa estar
-   liberada no firewall para receber eventos.
-4. **Marque e injete** na máquina dos clientes: registre a marca com
-   `sonda marcar -texto "injeção: ..." 2>> marcas.log`, injete a falha no
-   host alvo e registre logo depois a marca `injeção concluída`, que fecha
-   o intervalo usado na lacuna de eventos. Formas de injeção:
-   - cortar a energia ou desconectar o cabo de rede;
-   - `sudo ip link set <interface> down`: o host some da rede sem fechar
-     conexões;
-   - `echo o | sudo tee /proc/sysrq-trigger`: desliga o kernel na hora, sem
-     encerrar os processos (exige `kernel.sysrq` habilitado);
-   - `echo b | sudo tee /proc/sysrq-trigger`: reinicia na hora.
-5. **Colete:** copie os registros de cada máquina para um diretório, com os
-   nomes `a.log`, `b.log`, `sonda-a.log`, `sonda-b.log` e `marcas.log`, e
-   rode `scripts/linha-do-tempo.sh <diretório>` para obter a linha do
-   tempo, o resumo e as medidas. Os resultados esperados são os dos
-   cenários 1 e 2, com detecção silenciosa: cerca de 5 s, sem
-   `conexão encerrada`.
+`scripts/duas-maquinas.sh` automatiza os dois lados:
+
+```
+# computador 1
+scripts/duas-maquinas.sh a <ip-do-computador-2>
+# computador 2
+scripts/duas-maquinas.sh clientes <ip-do-computador-1>
+```
+
+O papel `clientes` sobe o broker B e espera o A conectar. Depois sobe o
+leilão, com o leiloeiro, o participante-1 e o espectador-a preferindo o A,
+e o participante-2 e o espectador-b preferindo o B, além da sonda-a. Após
+10 s, confere se os eventos atravessam os dois brokers e pede três Enter:
+logo antes da injeção, logo depois dela, e para encerrar e coletar.
+
+Antes do ensaio:
+
+1. **Rede e endereços:** os dois computadores na mesma rede local. O IP
+   aparece em `ipconfig getifaddr en0` no macOS e em `hostname -I` no
+   Linux. Confira com `ping` nos dois sentidos.
+2. **Executáveis:** em cada computador, `git pull` e `make build` (exige
+   Go 1.23). Sem Go, compile num computador e copie a pasta `bin/` e o
+   arquivo `config/credentials.ensaio.json`; para outro sistema, use
+   `GOOS=linux GOARCH=amd64 make build` ou `GOOS=darwin GOARCH=arm64`.
+3. **Portas:** libere no firewall a entrada de TCP 7000 e 7002 e de UDP
+   7001 nos dois computadores, e de UDP 7301 a 7305 no computador 2 (os
+   clientes do leilão). No macOS, aceite o aviso "permitir conexões de
+   entrada" para `broker` e `leilao`. A porta 7000 costuma estar ocupada
+   pelo Receptor AirPlay do macOS: desative o receptor ou use
+   `PORTA=7200 scripts/duas-maquinas.sh a ...` e
+   `scripts/duas-maquinas.sh clientes <ip-do-computador-1>:7200`.
+4. **Relógios:** as medidas de lacuna e de failover usam só o relógio do
+   computador 2. Os horários do `a.log` só entram na linha do tempo; para
+   compará-los, sincronize os relógios (`sudo sntp -sS time.apple.com` no
+   macOS, `chronyc makestep` no Linux) e anote o desvio
+   (`sntp time.apple.com` ou `chronyc tracking`).
+
+Formas de injeção no computador 1, da mais à menos próxima de uma falha de
+host:
+
+- **energia:** tirar da tomada um computador sem bateria, ou segurar o
+  botão de energia até desligar. Nada é avisado aos outros computadores;
+- **rede:** desconectar o cabo ou desligar o Wi-Fi
+  (`networksetup -setairportpower en0 off` no macOS,
+  `sudo ip link set <interface> down` no Linux). O computador some da rede
+  sem fechar as conexões;
+- **kernel (Linux):** `echo o | sudo tee /proc/sysrq-trigger` desliga na
+  hora, sem encerrar os processos (exige `kernel.sysrq` habilitado);
+- **processo, para comparação:** `kill -9` no broker A. O sistema
+  operacional fecha as conexões, e a detecção é imediata.
+
+`sudo shutdown` não serve: o sistema encerra os processos e fecha as
+conexões, o que equivale a parar o broker.
+
+Depois do terceiro Enter, o roteiro grava os registros em
+`ensaios/resultados/<data>-host/` e calcula as medidas. Para incluir o
+broker A na linha do tempo, copie `ensaios/host/a.log` do computador 1
+para esse diretório e rode `scripts/linha-do-tempo.sh <diretório>` de novo.
+Com a energia cortada, as últimas linhas do `a.log` podem se perder, porque
+estavam no cache do sistema.
+
+Resultados esperados, os do cenário 8 com detecção silenciosa:
+
+- a sonda, o leiloeiro, o participante-1 e o espectador-a detectam a falha
+  em cerca de 5 s, sem `conexão encerrada`, e passam ao B;
+- `medidas.log` mostra lacunas de cerca de 5 s nos fluxos que passavam
+  pelo A, com os eventos desse período perdidos;
+- o participante-2 continua chegando ao espectador-b sem lacuna;
+- com `kill -9`, a detecção é imediata e não há lacuna acima da cadência.
 
 ## 6. Execução de referência
 
